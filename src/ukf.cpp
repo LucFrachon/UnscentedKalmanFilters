@@ -156,10 +156,27 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   //After initialization
   double dt = (meas_package.timestamp_ - time_us_) / 1000000.;  //convert from us to s 
 
+  //*********************************************************
+  // PREDICT
+
   Prediction(dt);
   cout << "\nPredicted state:\n" << x_ << endl;
   cout << "\nPredicted covariance:\n" << P_ << endl;
+
+
+  //*********************************************************
+  // UPDATE with new measurement
+
+  if(MeasurementPackage::RADAR == meas_package.sensor_type_)
+  {
+    UpdateRadar(meas_package);
+  } 
+  else if(MeasurementPackage::LASER == meas_package.sensor_type_)
+  {
+    UpdateLidar(meas_package);
+  }
 }
+
 
 /**
  * Predicts sigma points, the state, and the state covariance matrix.
@@ -168,14 +185,19 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  */
 void UKF::Prediction(double delta_t) {
 
+  //local matrix to store state vectors of augmented sigma points
   MatrixXd Xsig_aug = MatrixXd(n_aug_, n_sig_);
 
+  //fill Xsig_aug with sigma points
   GenerateAugmentedSigmaPoints(&Xsig_aug);
   
+  //predict the state of sigma points at timestep k+1|k
   PredictSigmaPoints(Xsig_aug, delta_t);
   
+  //compute mean and covariance of the state vector at k+1|k
   PredictMeanAndCovariance();
 }
+
 
 /**
  * Updates the state and the state covariance matrix using a laser measurement.
