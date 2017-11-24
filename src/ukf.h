@@ -64,6 +64,9 @@ public:
   ///* Augmented state dimension
   int n_aug_;
 
+  ///* Number of sigma points
+  int n_sig_;
+
   ///* Sigma point spreading parameter
   double lambda_;
 
@@ -102,6 +105,22 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+  void GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out);
+  //Precondition: Xsig_out is an empty matrix with n_aug_ rows and n_sig_ columns
+  //Postcondition: Xsig_out containts the state values for each of the sigma points
+
+  void PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t);
+  //Precondition: Xsig_aug is a matrix with n_aug_ rows and n_sig_ columns, containing
+  //  the augmented sigma points
+  //Postcondition: Xsig_out is a n_x_ * n_sig_ matrix containing the predicted states
+  //  for the sigma points
+
+  void PredictMeanAndCovariance();
+  //Postcondition: x_ and P_ are modified to show the predicted mean and covariance 
+  //  derived from the sigma points' transformation.
+
+
 };
 
 #endif /* UKF_H */
