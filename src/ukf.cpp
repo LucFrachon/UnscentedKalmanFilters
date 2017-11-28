@@ -16,10 +16,10 @@ const double EPS = 0.0001;  //threshold for div by zero detection
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+  use_laser_ = false;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = true;
+  use_radar_ = false;
 
   // State dimension
   n_x_ = 5;
@@ -61,10 +61,10 @@ UKF::UKF() {
   Xsig_pred_ = MatrixXd(n_x_, n_sig_);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 1.;  //initial value 30, try 1.5
+  std_a_ = 1.5;  //initial value 30, try 1.5
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 1.;  //initial value 30, try 2.3
+  std_yawdd_ = 2.3;  //initial value 30, try 2.3
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -84,12 +84,6 @@ UKF::UKF() {
   // Parameters above this line are scaffolding, do not modify
 
 
-  // State covariance matrix
-  P_ << 1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0, 0, 0, 1, 0,
-        0, 0, 0, 0, 1;
 
   // Measurement covariance matrix (radar)
   S_rad_ << 0, 0, 0,
@@ -129,59 +123,11 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     // take first measurement
     if(MeasurementPackage::RADAR == meas_package.sensor_type_)
     {
-      // convert state from polar to cartesian coordinates
-      double rho = meas_package.raw_measurements_(0);
-      double phi = meas_package.raw_measurements_(1);
-      double rho_dot = meas_package.raw_measurements_(2);
-
-      // initial position is directly derived from the polar coordinates
-      double px_in = rho * cos(phi);
-      double py_in = rho * sin(phi);
-
-      // initial value of yaw psi is set to phi if rho_dot >= 0, to -phi otherwise
-      // because these values are the middles of the ranges of possible values for psi
-      // depending on whether the object is moving towards us or away from us.
-      double psi_in;
-
-      if(rho_dot >= 0)  // object moving away
-      {
-        psi_in = phi;
-      } 
-      else  // object moving closer
-      {
-        psi_in = -phi;
-      }
-      
-      // for a given value of rho_dot, v can vary between rho_dot and +inf 
-      // (if psi - phi = +- pi / 2). The probability distribution for the values
-      // of v depends on the probability of each value of psi - phi between 0 and pi.
-      // This second probability distribution is uniform (each angle value is equally
-      // likely) so the center of the distribution for v corresponds to psi - phi = pi / 4,
-      // which corresponds to a value of v = rho_dot * sqrt(2)
-      double v_in = rho_dot * sqrt(2);
-
-      // for the yaw rate psi_dot, we have no useful information at this stage so we
-      // will just assume linear motion
-      double psi_dot_in = 0;
-
-      // feed these initial values to x_
-      x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
+      InitializeStateWithRadar(meas_package);
     }
     else if(MeasurementPackage::LASER == meas_package.sensor_type_)
     {
-      // px and py are taken straight from the measurement
-      double px_in = meas_package.raw_measurements_[0];
-      double py_in = meas_package.raw_measurements_[1];
-
-      // initial velocity is set to a sensible 'average' speed for a bicycle
-      double v_in = 2.8;
-
-      // all directions and yaw rates are equally likely
-      double psi_in = 0;
-      double psi_dot_in = 0;
-
-      // feed these initial values to x_
-      x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
+      InitializeStateWithLidar(meas_package);
     }
    
     //calculate weights to use in future steps
@@ -218,19 +164,16 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Prediction(dt);
   } catch (std::range_error e)
   {
-    cout << "\nNumerical error - reinitializing measurement vector\n";
+    cout << "\nNumerical error - reinitializing state to previous measurement\n";
     if(MeasurementPackage::LASER == prev_measurement_.sensor_type_)
     {
-      x_ << prev_measurement_.raw_measurements_(0),
-            prev_measurement_.raw_measurements_(1),
-            2.8,
-            0,
-            0;      
-    } else
+      InitializeStateWithLidar(prev_measurement_);    
+
+    } else if (MeasurementPackage::RADAR == prev_measurement_.sensor_type_)
     {
-
+      InitializeStateWithRadar(prev_measurement_);
     }
-
+    //cin.ignore();
 
   }
   cout << "\nPredicted state:\n" << x_ << endl;
@@ -257,9 +200,77 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 }
 
-void InitializeStateWithRadar(MeasurementPackage meas_package)
+void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
 {
+  // convert state from polar to cartesian coordinates
+  double rho = meas_package.raw_measurements_[0];
+  double phi = meas_package.raw_measurements_[1];
+  double rho_dot = meas_package.raw_measurements_[2];
 
+  // initial position is directly derived from the polar coordinates
+  double px_in = rho * cos(phi);
+  double py_in = rho * sin(phi);
+
+  // initial value of yaw psi is set to phi if rho_dot >= 0, to -phi otherwise
+  // because these values are the middles of the ranges of possible values for psi
+  // depending on whether the object is moving towards us or away from us.
+  double psi_in;
+
+  if(rho_dot >= 0)  // object moving away
+  {
+    psi_in = phi;
+  } 
+  else  // object moving closer
+  {
+    psi_in = -phi;
+  }
+  
+  // for a given value of rho_dot, v can vary between rho_dot and +inf 
+  // (if psi - phi = +- pi / 2). The probability distribution for the values
+  // of v depends on the probability of each value of psi - phi between 0 and pi.
+  // This second probability distribution is uniform (each angle value is equally
+  // likely) so the center of the distribution for v corresponds to psi - phi = pi / 4,
+  // which corresponds to a value of v = rho_dot * sqrt(2)
+  double v_in = rho_dot * sqrt(2);
+
+  // for the yaw rate psi_dot, we have no useful information at this stage so we
+  // will just assume linear motion
+  double psi_dot_in = 0;
+
+  // feed these initial values to x_
+  x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
+
+  // State covariance matrix
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
+}
+
+
+void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
+{
+  // px and py are taken straight from the measurement
+  double px_in = meas_package.raw_measurements_[0];
+  double py_in = meas_package.raw_measurements_[1];
+
+  // initial velocity is set to a sensible 'average' speed for a bicycle
+  double v_in = 2.8;
+
+  // all directions and yaw rates are equally likely
+  double psi_in = 0;
+  double psi_dot_in = 0;
+
+  // feed these initial values to x_
+  x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
+
+  // State covariance matrix
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
 }
 
 
@@ -375,8 +386,8 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
   P_aug(n_x_, n_x_) = std_a_ * std_a_;   //last two diagonal elements are the variances
   P_aug(n_x_ + 1, n_x_ + 1) = std_yawdd_ * std_yawdd_;  //for long. and yaw accelerations
 
-  //MatrixXd A = P_aug.llt().matrixL();  //pre-compute the "square root" of matrix P
-  MatrixXd A = tools_.SqrtMatrix(P_aug, true);
+  //pre-compute the "square root" of matrix P
+  MatrixXd A = tools_.SqrtMatrix(P_aug);
 
   cout << "\nP_aug:\n = \n" << P_aug << endl;
   cout << "\nSquare root of P_aug:\nA = \n" << A << endl;

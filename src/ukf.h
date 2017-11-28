@@ -105,6 +105,13 @@ public:
    * Destructor
    */
   virtual ~UKF();
+  /**
+   * ProcessMeasurement
+   * @param meas_package The latest measurement data of either radar or laser
+   */
+  void ProcessMeasurement(MeasurementPackage meas_package);
+
+
 
   void InitializeStateWithRadar(MeasurementPackage meas_package);
   //TODO: Function description
@@ -113,11 +120,6 @@ public:
   //TODO: Function description
 
 
-  /**
-   * ProcessMeasurement
-   * @param meas_package The latest measurement data of either radar or laser
-   */
-  void ProcessMeasurement(MeasurementPackage meas_package);
 
   /**
    * Prediction Predicts sigma points, the state, and the state covariance

@@ -16,7 +16,7 @@ xk = np.array([[.312243],[.58034],[2.80],[0],[0]], dtype = np.float64)
 
 Pk = np.eye(5, dtype = np.float64)
 
-for timestep in range(0,2500,5):
+for timestep in range(0,15,5):
     print(timestep/100)
     dt = 0.05
     xa = np.zeros((7, 1), dtype = np.float64)
@@ -28,12 +28,6 @@ for timestep in range(0,2500,5):
     Pa[6,6] = std_yawdd
       
     A = spl.sqrtm(Pa)
-    
-    if not np.array_equal(A.dot(A) , Pa):
-        print("Error in square root matrix")
-        print(A.dot(A))
-        print(Pa)
-        break
     
     Xak = np.concatenate([xa, xa + np.sqrt(3) * A, xa - np.sqrt(3) * A], axis = 1)
     

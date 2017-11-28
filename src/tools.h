@@ -36,7 +36,7 @@ public:
   Helper method to calculate square roots of a matrix. Includes checks to ensure no element of the 
   resulting matrix is negative nor complex
   */
-  MatrixXd SqrtMatrix(MatrixXd M, bool pauseOnError);
+  MatrixXd SqrtMatrix(MatrixXd M);
   //Precodition: M is a square matrix, pauseOnError indicates whether the program execution should
   //  pause when an error is found.
   //Postcondition: Returns the square root of the matrix M if it is positive and has no complex elements.
