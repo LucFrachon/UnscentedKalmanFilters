@@ -27,10 +27,10 @@ public:
   /*
   Helper method to normalize angles
   */
-  void NormalizeAngle(float& angle);
-  //Precondition: angle is a float
-  //Postcondition: angle is normalized to the [-pi, +pi] range by adding or substracting 2 * pi as
-  //many times as required.
+  double NormalizeAngle(double angle);
+  //Precondition: angle is a double
+  //Postcondition: The return value is angle normalized to the [-pi, +pi] range by adding or substracting 
+  //  2 * pi as many times as required.
   
 };
 

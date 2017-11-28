@@ -2,6 +2,7 @@
 #define UKF_H
 
 #include "measurement_package.h"
+#include "tools.h"
 #include "Eigen/Dense"
 #include <vector>
 #include <string>
@@ -24,6 +25,24 @@ public:
 
   ///* state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
   VectorXd x_;
+
+  ///* predicted measurement vector (radar)
+  VectorXd z_pred_rad_;
+
+  ///* Measurement sigma points matrix (radar)
+  MatrixXd Z_sig_rad_;
+
+  ///* Measurement covariance matrix (radar)
+  MatrixXd S_rad_;
+
+   ///* predicted measurement vector (laser)
+  VectorXd z_pred_las_;
+
+  ///* Measurement sigma points matrix (laser)
+  MatrixXd Z_sig_las_;
+
+  ///* Measurement covariance matrix (laser)
+  MatrixXd S_las_;
 
   ///* state covariance matrix
   MatrixXd P_;
@@ -68,7 +87,10 @@ public:
   int n_sig_;
 
   ///* Sigma point spreading parameter
-  double lambda_;
+  double lambda_a_;
+
+  ///* Instance of Tools
+  Tools tools_;
 
 
   /**
@@ -107,7 +129,7 @@ public:
   void UpdateRadar(MeasurementPackage meas_package);
 
   void GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out);
-  //Precondition: Xsig_out is an empty matrix with n_aug_ rows and n_sig_ columns
+  //Precondition: *Xsig_out points to an empty matrix with n_aug_ rows and n_sig_ columns
   //Postcondition: Xsig_out containts the state values for each of the sigma points
 
   void PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t);
@@ -120,6 +142,25 @@ public:
   //Postcondition: x_ and P_ are modified to show the predicted mean and covariance 
   //  derived from the sigma points' transformation.
 
+  void PredictRadarMeasurement();
+  //Postcondition: z_pred_rad_ contains predicted measurements (latest state estimation projected 
+  //  to measurement space), Z_sig_rad_ contains the predicted measurement sigma points and S_rad_
+  //  contains the predicted measurement covariance matrix.
+
+  void UpdateRadarState(MeasurementPackage meas_package);
+  //Precondition: meas_package contains the latest measurements. x_ and P_ contain predicted state
+  //  and covariance matrix before the measurements come in.
+  //Postcondition: x_ and P_ are updated after measurements are taken into account.
+
+  void PredictLidarMeasurement();
+  //Postcondition: z_pred_las_ contains predicted measurements 
+  //  Z_sig_las_ contains the predicted measurement sigma points and S_rad_
+  //  contains the predicted measurement covariance matrix.
+
+  void UpdateLidarState(MeasurementPackage meas_package);
+  //Precondition: meas_package contains the latest measurements. x_ and P_ contain predicted state
+  //  and covariance matrix before the measurements come in.
+  //Postcondition: x_ and P_ are updated after measurements are taken into account.
 
 };
 
