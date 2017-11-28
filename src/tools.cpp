@@ -54,3 +54,20 @@ double Tools::NormalizeAngle(double angle)
   while (angle_out < -M_PI) angle_out += 2. * M_PI;
   return angle_out;
 }
+
+
+MatrixXd Tools::SqrtMatrix(MatrixXd M, bool pauseOnError)
+{
+  MatrixXd LLT = M.llt();
+
+  if(Eigen::NumericalIssue == LLT.info())
+  {
+    cout << "\nProblem with LLT!\n";
+    Eigen::EigenSolver<MatrixXd> es(M);
+    cout << "Eigenvalues of original matrix: \n"
+         << es.eigenvalues() << endl;
+    throw std::range_error("LLT failed");
+  }
+  
+  return LLT.matrixL();
+}

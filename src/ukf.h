@@ -92,6 +92,9 @@ public:
   ///* Instance of Tools
   Tools tools_;
 
+  ///* Previous measurement (to overcome issues with numerical instability)
+  MeasurementPackage prev_measurement_;
+
 
   /**
    * Constructor
@@ -102,6 +105,13 @@ public:
    * Destructor
    */
   virtual ~UKF();
+
+  void InitializeStateWithRadar(MeasurementPackage meas_package);
+  //TODO: Function description
+
+  void InitializeStateWithLidar(MeasurementPackage meas_package);
+  //TODO: Function description
+
 
   /**
    * ProcessMeasurement
@@ -151,17 +161,6 @@ public:
   //Precondition: meas_package contains the latest measurements. x_ and P_ contain predicted state
   //  and covariance matrix before the measurements come in.
   //Postcondition: x_ and P_ are updated after measurements are taken into account.
-
-  void PredictLidarMeasurement();
-  //Postcondition: z_pred_las_ contains predicted measurements 
-  //  Z_sig_las_ contains the predicted measurement sigma points and S_rad_
-  //  contains the predicted measurement covariance matrix.
-
-  void UpdateLidarState(MeasurementPackage meas_package);
-  //Precondition: meas_package contains the latest measurements. x_ and P_ contain predicted state
-  //  and covariance matrix before the measurements come in.
-  //Postcondition: x_ and P_ are updated after measurements are taken into account.
-
 };
 
 #endif /* UKF_H */
