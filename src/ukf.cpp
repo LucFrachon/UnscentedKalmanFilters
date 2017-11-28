@@ -16,10 +16,10 @@ const double EPS = 0.0001;  //threshold for div by zero detection
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = false;
+  use_radar_ = true;
 
   // State dimension
   n_x_ = 5;
@@ -32,33 +32,47 @@ UKF::UKF() {
 
   // initial state vector
   x_ = VectorXd(n_x_);
+  x_.fill(0.);
 
   // predicted measurement vector (radar)
   z_pred_rad_ = VectorXd(3);
+  z_pred_rad_.fill(0.);
 
   // predicted measurement vector (laser)
   z_pred_las_ = VectorXd(2);
+  z_pred_las_.fill(0.);
 
   // initial covariance matrix
   P_ = MatrixXd(n_x_, n_x_);
+  P_.fill(0.);
 
   // Measurement sigma points matrix (radar)  
   Z_sig_rad_ = MatrixXd(3, n_sig_);
+  Z_sig_rad_.fill(0.);
 
   // Measurement covariance matrix (radar)
   S_rad_ = MatrixXd(3, 3);
+  S_rad_.fill(0.);
 
   // Predicted state sigma points matrix
   Xsig_pred_ = MatrixXd(n_x_, n_sig_);
+  Xsig_pred_.fill(0.);
 
   // Measurement sigma points matrix (laser)  
   Z_sig_las_ = MatrixXd(2, n_sig_);
+  Z_sig_las_.fill(0.);
 
   // Measurement covariance matrix (laser)
   S_las_ = MatrixXd(2, 2);
+  S_las_.fill(0.);
 
   // Predicted state sigma points matrix
   Xsig_pred_ = MatrixXd(n_x_, n_sig_);
+  Xsig_pred_.fill(0.);
+
+  //weights vector, will be used in the mean and covariance computations
+  weights_ = VectorXd(n_sig_);
+  weights_.fill(0.);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 1.5;  //initial value 30, try 1.5
@@ -81,24 +95,8 @@ UKF::UKF() {
   // Radar measurement noise standard deviation radius change in m/s
   std_radrd_ = 0.3;
 
-  // Parameters above this line are scaffolding, do not modify
-
-
-
-  // Measurement covariance matrix (radar)
-  S_rad_ << 0, 0, 0,
-            0, 0, 0,
-            0, 0, 0;
-
-  // Measurement covariance matrix (laser)
-  S_las_ << 0, 0,
-            0, 0;
-
   // Augmented sigma points spreading parameter
   lambda_a_ = 3 - n_aug_;  // Adjustable
-
-  //weights vector, will be used in the mean and covariance computations
-  weights_ = VectorXd(n_sig_);
 
   // instance of Tools class
   Tools tools_;
@@ -241,11 +239,11 @@ void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0, 0, 0, 1, 0,
-        0, 0, 0, 0, 1;
+  P_ << 2, 0, 0, 0,   0,
+        0, 4, 0, 0,   0,
+        0, 0, 1, 0,   0,
+        0, 0, 0, 0.5, 0,
+        0, 0, 0, 0, 0.5;
 }
 
 
@@ -266,11 +264,11 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0, 0, 0, 1, 0,
-        0, 0, 0, 0, 1;
+  P_ << 2, 0, 0, 0,   0,
+        0, 4, 0, 0,   0,
+        0, 0, 1, 0,   0,
+        0, 0, 0, 0.5, 0,
+        0, 0, 0, 0, 0.5;
 }
 
 
@@ -283,6 +281,7 @@ void UKF::Prediction(double delta_t) {
 
   //local matrix to store state vectors of augmented sigma points
   MatrixXd Xsig_aug = MatrixXd(n_aug_, n_sig_);
+  Xsig_aug.fill(0.);
 
   //fill Xsig_aug with sigma points
   GenerateAugmentedSigmaPoints(&Xsig_aug);
@@ -372,8 +371,11 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
 void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
 {
   VectorXd x_aug = VectorXd(n_aug_);  //augmented state vector
+  x_aug.fill(0.);
   MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);  //augmented state covariance matrix
+  P_aug.fill(0.);
   MatrixXd Xsig_aug = MatrixXd(n_aug_, n_sig_);  //matrix for augmented sigma points
+  Xsig_aug.fill(0.);
 
   //create the augmented state vector
   x_aug.head(n_x_) = x_;
@@ -414,7 +416,7 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
     double px = Xsig_aug(0, i);
     double py = Xsig_aug(1, i);
     double v  = Xsig_aug(2, i);
-    double psi = Xsig_aug(3, i);
+    double psi = tools_.NormalizeAngle(Xsig_aug(3, i));  //normalized to [-pi, +pi]
     double psi_dot = Xsig_aug(4, i);
     double nu_a = Xsig_aug(5, i);
     double nu_pdd = Xsig_aug(6, i);
@@ -448,7 +450,8 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
 
     //other components are the same regardless of the value of psi_dot
     Xsig_pred_(2, i) = Xsig_aug(2, i) + delta_t * nu_a;
-    Xsig_pred_(3, i) = Xsig_aug(3, i) + psi_dot * delta_t + 0.5 * pow(delta_t, 2) * nu_pdd;
+    Xsig_pred_(3, i) = tools_.NormalizeAngle(Xsig_aug(3, i) + psi_dot * delta_t + 
+                                             0.5 * pow(delta_t, 2) * nu_pdd);
     Xsig_pred_(4, i) = Xsig_aug(4, i) + delta_t * nu_pdd;
 
   }
@@ -459,8 +462,8 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
 void UKF::PredictMeanAndCovariance()
 {
   //set state vector and covariance matrix to empty
-  //x_.fill(0.0);
-  //P_.fill(0.0);
+  x_.fill(0.0);
+  P_.fill(0.0);
 
   //predict state vector at k+1|k
   for(unsigned int i = 0; i < n_sig_; i++)
@@ -488,6 +491,7 @@ void UKF::PredictRadarMeasurement()
 
   //matrix of measurement sigma points
   MatrixXd Z_sig(n_z, n_sig_);
+  Z_sig.fill(0.);
 
   //measurement noise matrix
   MatrixXd R(n_z, n_z);
@@ -497,7 +501,7 @@ void UKF::PredictRadarMeasurement()
 
   //matrix of measurement covariance (radar)
   MatrixXd S(n_z, n_z);
-  S.setZero();
+  S.fill(0.);
 
   //project sigma points into measurement space
   for(unsigned int i = 0; i < n_sig_; i++)
@@ -510,8 +514,20 @@ void UKF::PredictRadarMeasurement()
     double psi_dot = Xsig_pred_(4, i);
 
     Z_sig(0, i) = sqrt(px * px + py * py);
-    Z_sig(1, i) = atan2(py, px);
-    Z_sig(2, i) = (px * cos(psi) * v + py * sin(psi) * v) / Z_sig(0, i);
+
+    if(px != 0)  //avoid div by 0
+    {
+      Z_sig(1, i) = atan2(py, px);
+    } else
+    Z_sig(1, i) = 0;
+
+    if(0 != Z_sig(0, i))  //avoid div by 0
+    {
+      Z_sig(2, i) = (px * cos(psi) * v + py * sin(psi) * v) / Z_sig(0, i);
+    } else
+    {
+      Z_sig(2, i) = 0;
+    }  
   }
 
     //calculate mean predicted measurement
