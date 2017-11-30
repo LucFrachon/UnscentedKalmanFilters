@@ -8,7 +8,7 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
 
-const double EPS = 0.0001;  //threshold for div by zero detection
+const double EPS = 0.001;  //threshold for div by zero detection
 
 /**
  * Initializes Unscented Kalman filter
@@ -19,7 +19,7 @@ UKF::UKF() {
   use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = true;
+  use_radar_ = false;
 
   // State dimension
   n_x_ = 5;
@@ -75,10 +75,10 @@ UKF::UKF() {
   weights_.fill(0.);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 1.5;  //initial value 30, try 1.5
+  std_a_ = 0.5;  //initial value 30, try 1.5
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 2.3;  //initial value 30, try 2.3
+  std_yawdd_ = 0.5;  //initial value 30, try 2.3
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -122,10 +122,12 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     if(MeasurementPackage::RADAR == meas_package.sensor_type_)
     {
       InitializeStateWithRadar(meas_package);
+      is_initialized_ = true;  // Initialization complete
     }
     else if(MeasurementPackage::LASER == meas_package.sensor_type_)
     {
       InitializeStateWithLidar(meas_package);
+      is_initialized_ = true;  // Initialization complete
     }
    
     //calculate weights to use in future steps
@@ -139,7 +141,6 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
     time_us_ = meas_package.timestamp_;
     prev_measurement_ = meas_package;
-    is_initialized_ = true;  // Initialization complete
    
     return;
   }
@@ -147,7 +148,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   //After initialization
   double dt = (meas_package.timestamp_ - time_us_) / 1000000.;  //convert from us to s 
 
-  cout << "\n\n**************** time = " << dt << " **********************\n\n";
+  cout << "\n\n**************** time = " << time_us_ / 1000000. << " **********************\n\n";
 
   cout << "x_ = \n" << x_ << endl;
   cout << "P_ = \n" << P_ << endl;
@@ -171,7 +172,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     {
       InitializeStateWithRadar(prev_measurement_);
     }
-    //cin.ignore();
+    cin.ignore();
 
   }
   cout << "\nPredicted state:\n" << x_ << endl;
@@ -185,16 +186,19 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   {
     cout << "\n --- Radar update ---\n";
     UpdateRadar(meas_package);
+    cout << "\nUpdated state:\n" << x_ << endl;
+    cout << "\nUpdated covariance:\n" << P_ << endl;
   } 
   else if(MeasurementPackage::LASER == meas_package.sensor_type_ && true == use_laser_)
   {
     cout << "\n --- Lidar update ---\n";
     UpdateLidar(meas_package);
+    cout << "\nUpdated state:\n" << x_ << endl;
+    cout << "\nUpdated covariance:\n" << P_ << endl;
   }
-  cout << "\nUpdated state:\n" << x_ << endl;
-  cout << "\nUpdated covariance:\n" << P_ << endl;
 
   prev_measurement_ = meas_package;
+  time_us_ = meas_package.timestamp_;
 
 }
 
@@ -257,8 +261,8 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   double v_in = 2.8;
 
   // all directions and yaw rates are equally likely
-  double psi_in = 0;
-  double psi_dot_in = 0;
+  double psi_in = 1.;
+  double psi_dot_in = 1.;  //use non-zero value for testing purposes
 
   // feed these initial values to x_
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
@@ -383,13 +387,13 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
   x_aug(6) = 0;  //yaw acceleration noise has zero mean
 
   //create augmented state covariance matrix
-  P_aug.setZero();
   P_aug.topLeftCorner(n_x_, n_x_) = P_;  //top left block is just P
   P_aug(n_x_, n_x_) = std_a_ * std_a_;   //last two diagonal elements are the variances
   P_aug(n_x_ + 1, n_x_ + 1) = std_yawdd_ * std_yawdd_;  //for long. and yaw accelerations
 
   //pre-compute the "square root" of matrix P
-  MatrixXd A = tools_.SqrtMatrix(P_aug);
+  //MatrixXd A = tools_.SqrtMatrix(P_aug);
+  MatrixXd A = P_aug.llt().matrixL();
 
   cout << "\nP_aug:\n = \n" << P_aug << endl;
   cout << "\nSquare root of P_aug:\nA = \n" << A << endl;
@@ -403,7 +407,7 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
     Xsig_aug.col(i + 1 + n_aug_) = x_aug - sqrt(lambda_a_ + n_aug_) * A.col(i);
   }
 
-  cout << "\nXsig_aug =\n" << Xsig_aug << endl;
+  // cout << "\nXsig_aug =\n" << Xsig_aug << endl;
   *Xsig_out = Xsig_aug;
 }
 
@@ -416,10 +420,10 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
     double px = Xsig_aug(0, i);
     double py = Xsig_aug(1, i);
     double v  = Xsig_aug(2, i);
-    double psi = tools_.NormalizeAngle(Xsig_aug(3, i));  //normalized to [-pi, +pi]
+    double psi = Xsig_aug(3, i);
     double psi_dot = Xsig_aug(4, i);
-    double nu_a = Xsig_aug(5, i);
-    double nu_pdd = Xsig_aug(6, i);
+    double nu_a = Xsig_aug(5, i);  //longitudinal acceleration noise
+    double nu_pdd = Xsig_aug(6, i);  //yaw acceleration noise
 
     //precompute some useful values
     double sin_psi = sin(psi);
@@ -430,29 +434,28 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
     //components 0 and 1 differ if psi_dot == 0:
     if(fabs(psi_dot) >= EPS)
     {
-      Xsig_pred_(0, i) = Xsig_aug(0, i) +
-                        v / psi_dot * sin_1 +
-                        0.5 * pow(delta_t, 2) * cos_psi * nu_a;
+      Xsig_pred_(0, i) = px +
+                         v / psi_dot * sin_1 +
+                         0.5 * pow(delta_t, 2) * cos_psi * nu_a;
 
-      Xsig_pred_(1, i) = Xsig_aug(1, i) +
-                        v / psi_dot * cos_1 +
-                        0.5 * pow(delta_t, 2) * sin_psi * nu_a;
+      Xsig_pred_(1, i) = py +
+                         v / psi_dot * cos_1 +
+                         0.5 * pow(delta_t, 2) * sin_psi * nu_a;
     } else
     {
-      Xsig_pred_(0, i) = Xsig_aug(0, i) + 
+      Xsig_pred_(0, i) = px + 
                         v * cos_psi * delta_t +
                         0.5 * pow(delta_t, 2) * cos_psi * nu_a;              
 
-      Xsig_pred_(1, i) = Xsig_aug(1, i) + 
+      Xsig_pred_(1, i) = py + 
                         v * sin_psi * delta_t +
                         0.5 * pow(delta_t, 2) * sin_psi * nu_a;
     }
 
     //other components are the same regardless of the value of psi_dot
-    Xsig_pred_(2, i) = Xsig_aug(2, i) + delta_t * nu_a;
-    Xsig_pred_(3, i) = tools_.NormalizeAngle(Xsig_aug(3, i) + psi_dot * delta_t + 
-                                             0.5 * pow(delta_t, 2) * nu_pdd);
-    Xsig_pred_(4, i) = Xsig_aug(4, i) + delta_t * nu_pdd;
+    Xsig_pred_(2, i) = v + delta_t * nu_a;
+    Xsig_pred_(3, i) = psi + psi_dot * delta_t + 0.5 * pow(delta_t, 2) * nu_pdd;
+    Xsig_pred_(4, i) = psi_dot + delta_t * nu_pdd;
 
   }
   cout << "\n\nXsig_pred_ = \n" << Xsig_pred_ << endl;
@@ -466,16 +469,15 @@ void UKF::PredictMeanAndCovariance()
   P_.fill(0.0);
 
   //predict state vector at k+1|k
-  for(unsigned int i = 0; i < n_sig_; i++)
-  {
-    //calculate x
-    x_ += weights_(i) * Xsig_pred_.col(i);
-  }
+  x_ = Xsig_pred_ * weights_;
 
   //predict state covariance matrix at timestep k+1|k
   for(unsigned int i = 0; i < n_sig_; i++)
   {
-    P_ += weights_(i) * ((Xsig_pred_.col(i) - x_) * (Xsig_pred_.col(i) - x_).transpose());
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
+    x_diff(3) = tools_.NormalizeAngle(x_diff(3));
+
+    P_ += weights_(i) * (x_diff * x_diff.transpose());
   }
 }
 
@@ -550,9 +552,9 @@ void UKF::PredictRadarMeasurement()
   //add measurement noise
   S += R;
 
-  cout << "\n\nz_pred = \n" << z_pred << endl;
-  cout << "\n\nZ_sig = \n" << Z_sig << endl;
-  cout << "\n\nS = \n" << S << endl;
+  // cout << "\n\nz_pred = \n" << z_pred << endl;
+  // cout << "\n\nZ_sig = \n" << Z_sig << endl;
+  // cout << "\n\nS = \n" << S << endl;
 
   z_pred_rad_ = z_pred;
   Z_sig_rad_ = Z_sig;
@@ -610,10 +612,10 @@ void UKF::UpdateRadarState(MeasurementPackage meas_package)
   x_update = x_ + K * z_diff;
   P_update = P_ + K * S_rad_ * K.transpose();
 
-  cout << "Updated state x = " << endl
-       << x_update << endl;
-  cout << "Updated covariance matrix P = " << endl
-       << P_update << endl;
+  // cout << "Updated state x = " << endl
+  //      << x_update << endl;
+  // cout << "Updated covariance matrix P = " << endl
+  //      << P_update << endl;
 
   //store calculations in class state variables
   x_ = x_update;
