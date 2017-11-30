@@ -8,7 +8,7 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
 
-const double EPS = 0.001;  //threshold for div by zero detection
+const double EPS = 0.0001;  //threshold for div by zero detection
 
 /**
  * Initializes Unscented Kalman filter
@@ -19,7 +19,7 @@ UKF::UKF() {
   use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = false;
+  use_radar_ = true;
 
   // State dimension
   n_x_ = 5;
@@ -106,9 +106,23 @@ UKF::UKF() {
 
   //previous measurement (to overcome issues with numerical instability)
   MeasurementPackage prev_measurement_;
+
+  //filenames for NIS calculations
+  string rad_nis_filename_ = "radar_nis.csv";
+  string las_nis_filename_ = "lidar_nis.csv";
+
+  //NIS out files
+  ofstream outfile_rad_;
+  outfile_rad_.open(rad_nis_filename_.c_str(), ofstream::out);
+  ofstream outfile_las_;
+  outfile_las_.open(las_nis_filename_.c_str(), ofstream::out);
+
 }
 
-UKF::~UKF() {}
+UKF::~UKF() {
+  outfile_rad_.close();
+  outfile_las_.close();
+}
 
 /**
  * @param {MeasurementPackage} meas_package The latest measurement data of
@@ -350,9 +364,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   MatrixXd I = MatrixXd::Identity(x_size, x_size) ;
   P_ = (I - K * H) * P_;
 
-
-  //TODO: Calculate Laser NIS
-
+  //calculate and write NIS to file
+  //use y as z_diff and S
+  tools_.CalculateAndWriteNIS(outfile_las_, y, S, time_us_);
 }
 
 
@@ -368,7 +382,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   //update state and covariance matrix with measurement
   UpdateRadarState(meas_package);
 
-  //TODO: Calculate Radar NIS  
+  //TODO: Calculate Radar NIS  -- see in UpdateRadarState() 
 }
 
 
@@ -407,7 +421,6 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
     Xsig_aug.col(i + 1 + n_aug_) = x_aug - sqrt(lambda_a_ + n_aug_) * A.col(i);
   }
 
-  // cout << "\nXsig_aug =\n" << Xsig_aug << endl;
   *Xsig_out = Xsig_aug;
 }
 
@@ -505,7 +518,7 @@ void UKF::PredictRadarMeasurement()
   MatrixXd S(n_z, n_z);
   S.fill(0.);
 
-  //project sigma points into measurement space
+  //project sigma points onto measurement space
   for(unsigned int i = 0; i < n_sig_; i++)
   {
     //for readability
@@ -517,13 +530,20 @@ void UKF::PredictRadarMeasurement()
 
     Z_sig(0, i) = sqrt(px * px + py * py);
 
-    if(px != 0)  //avoid div by 0
+    if(fabs(px) >= EPS)  //avoid div by 0
     {
       Z_sig(1, i) = atan2(py, px);
-    } else
-    Z_sig(1, i) = 0;
 
-    if(0 != Z_sig(0, i))  //avoid div by 0
+    } else if(py >= 0)  //if px = 0 and py > 0, vehicle is straight up
+    { 
+      Z_sig(1, i) = M_PI / 2.;
+
+    } else  //if px = 0 and py < 0, vehicle is straight down
+    {
+      Z_sig(1, i) = -M_PI / 2.;
+    }
+    
+    if(fabs(Z_sig(0, i)) >= EPS)  //avoid div by 0
     {
       Z_sig(2, i) = (px * cos(psi) * v + py * sin(psi) * v) / Z_sig(0, i);
     } else
@@ -531,7 +551,6 @@ void UKF::PredictRadarMeasurement()
       Z_sig(2, i) = 0;
     }  
   }
-
     //calculate mean predicted measurement
   for(unsigned int i = 0; i < n_sig_; i++)
   {
@@ -551,10 +570,6 @@ void UKF::PredictRadarMeasurement()
 
   //add measurement noise
   S += R;
-
-  // cout << "\n\nz_pred = \n" << z_pred << endl;
-  // cout << "\n\nZ_sig = \n" << Z_sig << endl;
-  // cout << "\n\nS = \n" << S << endl;
 
   z_pred_rad_ = z_pred;
   Z_sig_rad_ = Z_sig;
@@ -610,12 +625,10 @@ void UKF::UpdateRadarState(MeasurementPackage meas_package)
   z_diff(1) = tools_.NormalizeAngle(z_diff(1));
 
   x_update = x_ + K * z_diff;
-  P_update = P_ + K * S_rad_ * K.transpose();
+  P_update = P_ - K * S_rad_ * K.transpose();
 
-  // cout << "Updated state x = " << endl
-  //      << x_update << endl;
-  // cout << "Updated covariance matrix P = " << endl
-  //      << P_update << endl;
+  //calculate NIS
+  tools_.CalculateAndWriteNIS(outfile_rad_, z_diff, S_rad_, time_us_);
 
   //store calculations in class state variables
   x_ = x_update;

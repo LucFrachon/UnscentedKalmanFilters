@@ -95,6 +95,14 @@ public:
   ///* Previous measurement (to overcome issues with numerical instability)
   MeasurementPackage prev_measurement_;
 
+  //filenames for NIS calculations
+  string rad_nis_filename_;
+  string las_nis_filename_;
+
+  //NIS out files
+  ofstream outfile_rad_;
+  ofstream outfile_las_;
+
 
   /**
    * Constructor
@@ -163,6 +171,7 @@ public:
   //Precondition: meas_package contains the latest measurements. x_ and P_ contain predicted state
   //  and covariance matrix before the measurements come in.
   //Postcondition: x_ and P_ are updated after measurements are taken into account.
+
 };
 
 #endif /* UKF_H */
