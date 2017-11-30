@@ -261,8 +261,8 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   double v_in = 2.8;
 
   // all directions and yaw rates are equally likely
-  double psi_in = 1.;
-  double psi_dot_in = 1.;  //use non-zero value for testing purposes
+  double psi_in = 0.;
+  double psi_dot_in = 0.;  //use non-zero value for testing purposes
 
   // feed these initial values to x_
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
