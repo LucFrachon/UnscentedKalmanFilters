@@ -8,6 +8,7 @@
 #include <string>
 #include <fstream>
 
+using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
@@ -104,6 +105,12 @@ public:
   ofstream outfile_las_;
 
 
+  //timestep counter
+  int t_counter_;
+  //max timesteps
+  int max_timesteps_;
+
+
   /**
    * Constructor
    */
@@ -172,6 +179,18 @@ public:
   //  and covariance matrix before the measurements come in.
   //Postcondition: x_ and P_ are updated after measurements are taken into account.
 
+  void CalculateAndWriteNIS_radar(VectorXd z_diff);
+  //Precondition: outfile is the file which will record the NIS values. z_diff is the difference
+  //  vector between the predicted and the actual measurements.
+  //Postcondition: NIS values are computed and written in outfile_name for each timestep.
+
+  void CalculateAndWriteNIS_laser(VectorXd z_diff, MatrixXd S);
+  //Precondition: outfile is the file which will record the NIS values. z_diff is the difference
+  //  vector between the predicted and the actual measurements. S is the measurement covariance 
+  //  matrix.
+  //Postcondition: NIS values are computed and written in outfile_name for each timestep.
+
 };
 
 #endif /* UKF_H */
+ 

@@ -27,7 +27,7 @@ UKF::UKF() {
   // Augmented state dimension
   n_aug_ = 7;
 
-  // Number of augmented sigma points
+  // Number of augmented sigma points 
   n_sig_ = 2 * n_aug_ + 1;  // Adjustable?
 
   // initial state vector
@@ -75,10 +75,10 @@ UKF::UKF() {
   weights_.fill(0.);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 0.5;  //initial value 30, try 1.5
+  std_a_ = 2.;  //initial value 30, try 1.5
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 0.5;  //initial value 30, try 2.3
+  std_yawdd_ = 4.;  //initial value 30, try 2.3
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -108,20 +108,22 @@ UKF::UKF() {
   MeasurementPackage prev_measurement_;
 
   //filenames for NIS calculations
-  string rad_nis_filename_ = "radar_nis.csv";
-  string las_nis_filename_ = "lidar_nis.csv";
+  rad_nis_filename_ = "radar_nis.csv";
+  las_nis_filename_ = "lidar_nis.csv";
 
   //NIS out files
-  ofstream outfile_rad_;
   outfile_rad_.open(rad_nis_filename_.c_str(), ofstream::out);
-  ofstream outfile_las_;
   outfile_las_.open(las_nis_filename_.c_str(), ofstream::out);
+  
+
+  //timestep counter
+  t_counter_ = 1;
+  //max timesteps
+  max_timesteps_ = 499;
 
 }
 
 UKF::~UKF() {
-  outfile_rad_.close();
-  outfile_las_.close();
 }
 
 /**
@@ -155,14 +157,15 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
     time_us_ = meas_package.timestamp_;
     prev_measurement_ = meas_package;
-   
+
     return;
   }
 
   //After initialization
   double dt = (meas_package.timestamp_ - time_us_) / 1000000.;  //convert from us to s 
+  t_counter_ += 1;
 
-  cout << "\n\n**************** time = " << time_us_ / 1000000. << " **********************\n\n";
+  cout << "\n\n**************** timestep = " << t_counter_ << " **********************\n\n";
 
   cout << "x_ = \n" << x_ << endl;
   cout << "P_ = \n" << P_ << endl;
@@ -214,6 +217,13 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   prev_measurement_ = meas_package;
   time_us_ = meas_package.timestamp_;
 
+  //close NIS log files:
+  if(t_counter_ >= max_timesteps_)
+  {
+    if(outfile_las_.is_open()) {outfile_las_.close(); cout << "\nFile closed\n";}
+    if(outfile_rad_.is_open()) {outfile_rad_.close(); cout << "\nFile closed\n";}
+  }
+
 }
 
 void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
@@ -257,11 +267,11 @@ void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 2, 0, 0, 0,   0,
-        0, 4, 0, 0,   0,
-        0, 0, 1, 0,   0,
-        0, 0, 0, 0.5, 0,
-        0, 0, 0, 0, 0.5;
+  P_ << 2, 0, 0, 0,  0,
+        0, 4, 0, 0,  0,
+        0, 0, 3, 0,  0,
+        0, 0, 0, .2, 0,
+        0, 0, 0, 0, .2;
 }
 
 
@@ -272,7 +282,7 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   double py_in = meas_package.raw_measurements_[1];
 
   // initial velocity is set to a sensible 'average' speed for a bicycle
-  double v_in = 2.8;
+  double v_in = 3.;
 
   // all directions and yaw rates are equally likely
   double psi_in = 0.;
@@ -282,11 +292,11 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 2, 0, 0, 0,   0,
-        0, 4, 0, 0,   0,
-        0, 0, 1, 0,   0,
-        0, 0, 0, 0.5, 0,
-        0, 0, 0, 0, 0.5;
+  P_ << 2, 0, 0, 0,  0,
+        0, 4, 0, 0,  0,
+        0, 0, 10, 0,  0,
+        0, 0, 0, .2, 0,
+        0, 0, 0, 0, .2;
 }
 
 
@@ -365,8 +375,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   P_ = (I - K * H) * P_;
 
   //calculate and write NIS to file
-  //use y as z_diff and S
-  tools_.CalculateAndWriteNIS(outfile_las_, y, S, time_us_);
+  CalculateAndWriteNIS_laser(y, S);
 }
 
 
@@ -406,8 +415,8 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
   P_aug(n_x_ + 1, n_x_ + 1) = std_yawdd_ * std_yawdd_;  //for long. and yaw accelerations
 
   //pre-compute the "square root" of matrix P
-  //MatrixXd A = tools_.SqrtMatrix(P_aug);
-  MatrixXd A = P_aug.llt().matrixL();
+  MatrixXd A = tools_.SqrtMatrix(P_aug);
+  //MatrixXd A = P_aug.llt().matrixL();
 
   cout << "\nP_aug:\n = \n" << P_aug << endl;
   cout << "\nSquare root of P_aug:\nA = \n" << A << endl;
@@ -628,10 +637,37 @@ void UKF::UpdateRadarState(MeasurementPackage meas_package)
   P_update = P_ - K * S_rad_ * K.transpose();
 
   //calculate NIS
-  tools_.CalculateAndWriteNIS(outfile_rad_, z_diff, S_rad_, time_us_);
+  CalculateAndWriteNIS_radar(z_diff);
 
   //store calculations in class state variables
   x_ = x_update;
   P_ = P_update;
+}
+
+void UKF::CalculateAndWriteNIS_radar(VectorXd z_diff)
+{
+  float nis = z_diff.transpose() * S_rad_.inverse() * z_diff;
+
+  if(!outfile_rad_.is_open())
+  {
+    cout << "\nError: cannot open file.\n";
+    exit(EXIT_FAILURE);
+  }
+    
+  cout << "NIS: " << nis;
+  outfile_rad_ << time_us_ << "," << nis << "\n";
+}
+
+void UKF::CalculateAndWriteNIS_laser(VectorXd z_diff, MatrixXd S)
+{
+  float nis = z_diff.transpose() * S.inverse() * z_diff;
+
+  if(!outfile_las_.is_open())
+  {
+    cout << "\nError: cannot open file.\n";
+    exit(EXIT_FAILURE);
+  } 
+  cout << "NIS: " << nis;
+  outfile_las_ << time_us_ << "," << nis << "\n";
 }
 

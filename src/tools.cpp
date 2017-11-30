@@ -71,8 +71,3 @@ MatrixXd Tools::SqrtMatrix(MatrixXd M)
   return LLT.matrixL();
 }
 
-void Tools::CalculateAndWriteNIS(ofstream outfile, VectorXd z_diff, MatrixXd S, float time_us)
-{
-  float nis = z_diff.transpose() * S.inverse() * z_diff;
-  outfile << time_us << "," << nis << "\n";
-}
