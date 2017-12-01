@@ -8,7 +8,7 @@ In this project we code and tune an Unscented Kalman Filter to estimate the stat
 The tuned UKF presented here achieves the following RMSE values:
 
 | RMSE component | Project requirement | This UKF, dataset 1 | This UKF, dataset 2 |
-|================|=====================|=====================|=====================|
+|----------------|:-------------------:|:-------------------:|:-------------------:|
 | px             | 0.09                | 0.0661              | 0.0654              |
 | py             | 0.10                | 0.0899              | 0.0640              |
 | vx             | 0.40                | 0.1551              | 0.2784              |
@@ -80,13 +80,13 @@ Tips for setting up your environment can be found [here](https://classroom.udaci
 
 INPUT: values provided by the simulator to the c++ program
 
-["sensor_measurement"] => the measurement that the simulator observed (either lidar or radar)
+["sensor_measurement"] -> the measurement that the simulator observed (either lidar or radar)
 
 
 OUTPUT: values provided by the c++ program to the simulator
 
-["estimate_x"] <= kalman filter estimated position x
-["estimate_y"] <= kalman filter estimated position y
+["estimate_x"] <- kalman filter estimated position x
+["estimate_y"] <- kalman filter estimated position y
 ["rmse_x"]
 ["rmse_y"]
 ["rmse_vx"]
@@ -95,13 +95,13 @@ OUTPUT: values provided by the c++ program to the simulator
 ---
 
 ## Other Important Dependencies
-* cmake >= 3.5
+* cmake >- 3.5
   * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1 (Linux, Mac), 3.81 (Windows)
+* make >- 4.1 (Linux, Mac), 3.81 (Windows)
   * Linux: make is installed by default on most Linux distros
   * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
   * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
+* gcc/g++ >- 5.4
   * Linux: gcc / g++ is installed by default on most Linux distros
   * Mac: same deal as make - [install Xcode command line tools](https://developer.apple.com/xcode/features/)
   * Windows: recommend using [MinGW](http://www.mingw.org/)
