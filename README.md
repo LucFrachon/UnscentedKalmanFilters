@@ -3,8 +3,60 @@ Self-Driving Car Engineer Nanodegree Program
 
 In this project we code and tune an Unscented Kalman Filter to estimate the state of a moving object of interest with noisy lidar and radar measurements. Passing the project requires obtaining RMSE values that are lower that the tolerance outlined in the project rubric. 
 
-## Files
+## Results
 
+The tuned UKF presented here achieves the following RMSE values:
+
+| RMSE component | Project requirement | This UKF, dataset 1 | This UKF, dataset 2 |
+|================|=====================|=====================|=====================|
+| px             | 0.09                | 0.0661              | 0.0654              |
+| py             | 0.10                | 0.0899              | 0.0640              |
+| vx             | 0.40                | 0.1551              | 0.2784              |
+| vy             | 0.30                | 0.1669              | 0.2804              |
+
+
+## Folders and Files
+
+This project includes the following main files and folders:
+
+* **root**:
+    - CMakeLists.txt, cmakepatch.txt: To build the executable program.
+    - install-mac.sh, install-ubuntu.sh: Setup the environment 
+    - LICENSE, README: Documentation
+
+* **src**:
+    - main.cpp: Main program, receives inputs from the simulator and sends Root Square Mean Error values back to it through uWebSocketIO.
+    - ukf.h, ukf.cpp: Define the UKF class and the functions used to estimate the vehicle's position based on sensor measurements and process 
+    model.
+    - tools.h, tools.cpp: Define tools to compute the RMSE, normalize angles to [-pi, +pi] and calculate the square root of matrices (used during the generation of augmented sigma points).
+    - measurement_package.h: Defines the MeasurementPackage class. Each instance contains the raw sensor measurements, a timestamp when the measurement was made and the sensor used to measure these values (radar or lidar).
+    - json.hpp: Functions used to exchange information with the simulator in a JSON format. Do not modify.
+    - **Eigen**: The Eigen library is provided for convenience. This is used for vector and matrix computations.
+
+* **build**:
+    - UnscentedKF: The executable file for this program. See below for run instructions.
+    - Makefile, CMakeCache.txt, cmake_install.cmake, **CMakeFiles**: Compile files. Leave alone.
+
+* **plotting**:
+    - nis_plots.R: R script that reads the NIS output files and builds a ggplot2 graph of NIS over time for both sensors. It also calculates 
+    the proportion of NIS values for each sensor that exceed the chi-square 95th centile. This should ideally be close to 5% for a consistent 
+    UKF.
+    - lidar_nis.csv, radar_nis.csv: Output files containing the timesteps and NIS values for each sensor.
+
+
+## Basic Build and Run Instructions
+
+1. Clone this repo.
+2. Make a build directory: `mkdir build && cd build`
+3. Compile: `cmake .. && make`
+4. Run it: `./UnscentedKF`
+5. Execute the Term2 Simulator and select "Project 1/2: EKF and UKF". You can switch between Dataset 1 and Dataset2 with the tickboxes.
+    - Red circles represent LIDAR measurements (px and py)
+    - Blue circles represent RADAR measurements (radius, bearing and radial velocity). The small arrows inside the circles show the measured
+    bearing.
+    - The green triangles represent the postion of the vehicle as estimated by the UKF.
+
+**Note**: Kill your program and run it again before restarting the simulator, otherwise old values of the state vector and covariance matrix will be used as starting points.
 
 
 ## Requirements
@@ -54,10 +106,3 @@ OUTPUT: values provided by the c++ program to the simulator
   * Mac: same deal as make - [install Xcode command line tools](https://developer.apple.com/xcode/features/)
   * Windows: recommend using [MinGW](http://www.mingw.org/)
 
-## Basic Build Instructions
-
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./UnscentedKF` Previous versions use i/o from text files.  The current state uses i/o
-from the simulator.

@@ -1,6 +1,6 @@
 library(ggplot2)
 
-folder <- "C:/Users/Luc/Google\ Drive/CarND/Term2/p2/CarND-Unscented-Kalman-Filter-Project/build/"
+folder <- ""
 radar_nis <- read.csv(paste0(folder, 'radar_nis.csv'), col.names = c('timestep', 'NIS'))
 lidar_nis <- read.csv(paste0(folder, 'lidar_nis.csv'), col.names = c('timestep', 'NIS'))
 

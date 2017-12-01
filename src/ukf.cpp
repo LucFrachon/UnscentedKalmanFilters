@@ -108,8 +108,8 @@ UKF::UKF() {
   MeasurementPackage prev_measurement_;
 
   //filenames for NIS calculations
-  rad_nis_filename_ = "radar_nis.csv";
-  las_nis_filename_ = "lidar_nis.csv";
+  rad_nis_filename_ = "../plotting/radar_nis.csv";
+  las_nis_filename_ = "../plotting/lidar_nis.csv";
 
   //NIS out files
   outfile_rad_.open(rad_nis_filename_.c_str(), ofstream::out);
@@ -119,7 +119,7 @@ UKF::UKF() {
   //timestep counter
   t_counter_ = 1;
   //max timesteps
-  max_timesteps_ = 499;
+  max_timesteps_ = 498;  //dataset 2 has 1 fewer timestep
 
 }
 
