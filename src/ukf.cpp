@@ -75,10 +75,10 @@ UKF::UKF() {
   weights_.fill(0.);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 2.;  //initial value 30, try 1.5
+  std_a_ = 1.;  //initial value 30, try 1.5
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 4.;  //initial value 30, try 2.3
+  std_yawdd_ = .5;  //initial value 30, try 2.3
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -228,7 +228,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
 {
-  // convert state from polar to cartesian coordinates
+  // convert measurement from polar to cartesian coordinates
   double rho = meas_package.raw_measurements_[0];
   double phi = meas_package.raw_measurements_[1];
   double rho_dot = meas_package.raw_measurements_[2];
@@ -282,7 +282,7 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   double py_in = meas_package.raw_measurements_[1];
 
   // initial velocity is set to a sensible 'average' speed for a bicycle
-  double v_in = 3.;
+  double v_in = 5.;
 
   // all directions and yaw rates are equally likely
   double psi_in = 0.;
@@ -292,11 +292,11 @@ void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 2, 0, 0, 0,  0,
-        0, 4, 0, 0,  0,
+  P_ << 1, 0, 0, 0,  0,
+        0, 10, 0, 0,  0,
         0, 0, 10, 0,  0,
-        0, 0, 0, .2, 0,
-        0, 0, 0, 0, .2;
+        0, 0, 0, 0.1, 0,
+        0, 0, 0, 0, 0.05;
 }
 
 
@@ -416,8 +416,7 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
 
   //pre-compute the "square root" of matrix P
   MatrixXd A = tools_.SqrtMatrix(P_aug);
-  //MatrixXd A = P_aug.llt().matrixL();
-
+  
   cout << "\nP_aug:\n = \n" << P_aug << endl;
   cout << "\nSquare root of P_aug:\nA = \n" << A << endl;
 
