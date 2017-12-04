@@ -229,13 +229,13 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
 {
   // convert measurement from polar to cartesian coordinates
-  double rho = meas_package.raw_measurements_[0];
-  double phi = meas_package.raw_measurements_[1];
-  double rho_dot = meas_package.raw_measurements_[2];
+  const double rho = meas_package.raw_measurements_[0];
+  const double phi = meas_package.raw_measurements_[1];
+  const double rho_dot = meas_package.raw_measurements_[2];
 
   // initial position is directly derived from the polar coordinates
-  double px_in = rho * cos(phi);
-  double py_in = rho * sin(phi);
+  const double px_in = rho * cos(phi);
+  const double py_in = rho * sin(phi);
 
   // initial value of yaw psi is set to phi if rho_dot >= 0, to -phi otherwise
   // because these values are the middles of the ranges of possible values for psi
@@ -257,36 +257,36 @@ void UKF::InitializeStateWithRadar(MeasurementPackage meas_package)
   // This second probability distribution is uniform (each angle value is equally
   // likely) so the center of the distribution for v corresponds to psi - phi = pi / 4,
   // which corresponds to a value of v = rho_dot * sqrt(2)
-  double v_in = rho_dot * sqrt(2);
+  const double v_in = rho_dot * sqrt(2);
 
   // for the yaw rate psi_dot, we have no useful information at this stage so we
   // will just assume linear motion
-  double psi_dot_in = 0;
+  const double psi_dot_in = 0;
 
   // feed these initial values to x_
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
 
   // State covariance matrix
-  P_ << 2, 0, 0, 0,  0,
-        0, 4, 0, 0,  0,
-        0, 0, 3, 0,  0,
-        0, 0, 0, .2, 0,
-        0, 0, 0, 0, .2;
+  P_ << 1, 0, 0, 0,  0,
+        0, 10, 0, 0,  0,
+        0, 0, 10, 0,  0,
+        0, 0, 0, 0.1, 0,
+        0, 0, 0, 0, 0.05;
 }
 
 
 void UKF::InitializeStateWithLidar(MeasurementPackage meas_package)
 {
   // px and py are taken straight from the measurement
-  double px_in = meas_package.raw_measurements_[0];
-  double py_in = meas_package.raw_measurements_[1];
+  const double px_in = meas_package.raw_measurements_[0];
+  const double py_in = meas_package.raw_measurements_[1];
 
   // initial velocity is set to a sensible 'average' speed for a bicycle
-  double v_in = 5.;
+  const double v_in = 5.;
 
   // all directions and yaw rates are equally likely
-  double psi_in = 0.;
-  double psi_dot_in = 0.;  //use non-zero value for testing purposes
+  const double psi_in = 0.;
+  const double psi_dot_in = 0.;  //use non-zero value for testing purposes
 
   // feed these initial values to x_
   x_ << px_in, py_in, v_in, psi_in, psi_dot_in;
@@ -329,7 +329,7 @@ void UKF::Prediction(double delta_t) {
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) 
 {
-  int n_z = 2;  //lidar measurement dimension
+  const int n_z = 2;  //lidar measurement dimension
 
   //get measurements
   VectorXd z = VectorXd(n_z);
@@ -372,7 +372,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   //update estimated state covariance
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size) ;
-  P_ = (I - K * H) * P_;
+  P_ -= K * H * P_;
 
   //calculate and write NIS to file
   CalculateAndWriteNIS_laser(y, S);
@@ -423,10 +423,13 @@ void UKF::GenerateAugmentedSigmaPoints(MatrixXd *Xsig_out)
   //The first column of Xsig is x_ itself:
   Xsig_aug.col(0) = x_aug;
 
+  //Precompute square root term
+  const float sqrt_term = sqrt(lambda_a_ + n_aug_);
+
   for(unsigned int i = 0; i < n_aug_; i++)
   {
-    Xsig_aug.col(i + 1)          = x_aug + sqrt(lambda_a_ + n_aug_) * A.col(i);
-    Xsig_aug.col(i + 1 + n_aug_) = x_aug - sqrt(lambda_a_ + n_aug_) * A.col(i);
+    Xsig_aug.col(i + 1)          = x_aug + sqrt_term * A.col(i);
+    Xsig_aug.col(i + 1 + n_aug_) = x_aug - sqrt_term * A.col(i);
   }
 
   *Xsig_out = Xsig_aug;
@@ -438,19 +441,19 @@ void UKF::PredictSigmaPoints(MatrixXd Xsig_aug, double delta_t)
   for(unsigned int i = 0; i < n_sig_; i++)
   {
     //for code readability
-    double px = Xsig_aug(0, i);
-    double py = Xsig_aug(1, i);
-    double v  = Xsig_aug(2, i);
-    double psi = Xsig_aug(3, i);
-    double psi_dot = Xsig_aug(4, i);
-    double nu_a = Xsig_aug(5, i);  //longitudinal acceleration noise
-    double nu_pdd = Xsig_aug(6, i);  //yaw acceleration noise
+    const double px = Xsig_aug(0, i);
+    const double py = Xsig_aug(1, i);
+    const double v  = Xsig_aug(2, i);
+    const double psi = Xsig_aug(3, i);
+    const double psi_dot = Xsig_aug(4, i);
+    const double nu_a = Xsig_aug(5, i);  //longitudinal acceleration noise
+    const double nu_pdd = Xsig_aug(6, i);  //yaw acceleration noise
 
     //precompute some useful values
-    double sin_psi = sin(psi);
-    double cos_psi = cos(psi);
-    double sin_1 = sin(psi + psi_dot * delta_t) - sin_psi;
-    double cos_1 = cos_psi - cos(psi + psi_dot * delta_t);
+    const double sin_psi = sin(psi);
+    const double cos_psi = cos(psi);
+    const double sin_1 = sin(psi + psi_dot * delta_t) - sin_psi;
+    const double cos_1 = cos_psi - cos(psi + psi_dot * delta_t);
 
     //components 0 and 1 differ if psi_dot == 0:
     if(fabs(psi_dot) >= EPS)
@@ -506,7 +509,7 @@ void UKF::PredictMeanAndCovariance()
 void UKF::PredictRadarMeasurement()
 {
   //measurement vector dimension; for radars it's 3 (rho, phi, rho_dot)
-  int n_z = 3;
+  const int n_z = 3;
 
   //vector of mean predicted measurement
   VectorXd z_pred(n_z);
@@ -587,7 +590,7 @@ void UKF::PredictRadarMeasurement()
 
 void UKF::UpdateRadarState(MeasurementPackage meas_package)
 {
-  int n_z = 3;  //radar measurement dimension
+  const int n_z = 3;  //radar measurement dimension
 
   //updated state vector
   VectorXd x_update = VectorXd(n_x_);
